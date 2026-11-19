@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🍬 Candy Crush · match 3</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+    }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: linear-gradient(145deg, #3b1e4b 0%, #1e2a3a 100%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
+    }
+    .game-wrapper {
+      background: #2d1f35;
+      padding: 1.8rem 1.8rem 2rem;
+      border-radius: 4rem 4rem 3rem 3rem;
+      box-shadow: 0 25px 35px rgba(0, 0, 0, 0.6), inset 0 1px 4px rgba(255, 255, 255, 0.2);
+      border: 2px solid #ffb347;
+    }
+    .game-panel {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+    }
+    .score-area {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #1d1424;
+      padding: 0.6rem 1.5rem;
+      border-radius: 50px;
+      color: #fce8b2;
+      font-weight: bold;
+      letter-spacing: 1px;
+      box-shadow: inset 0 4px 8px #0b0710, 0 5px 0 #3f2b4b;
+      border-bottom: 2px solid #b8864b;
+    }
+    .score-label {
+      font-size: 1.2rem;
+      text-shadow: 0 2px 0 #4a2e2e;
+    }
+    .score-value {
+      font-size: 2rem;
+      background: #ffdb7c;
+      padding: 0.1rem 1rem;
+      border-radius: 30px;
+      color: #3b1e4b;
+      box-shadow: inset 0 -3px 0 #b8864b;
+      font-weight: 800;
+    }
+    .board-container {
+      background: #503b5e;
+      padding: 1.2rem;
+      border-radius: 2.5rem;
+      box-shadow: inset 0 0 0 4px #806b8a, inset 0 0 0 8px #2f1e38, 0 15px 20px #0f0a12;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      grid-template-rows: repeat(8, 1fr);
+      gap: 6px;
+      width: min(65vh, 480px);
+      height: min(65vh, 480px);
+      background: #2a1d31;
+      padding: 6px;
+      border-radius: 2rem;
+      box-shadow: inset 0 0 10px #0f0812;
+    }
+    .cell {
+      background: #b7a1c2;
+      border-radius: 1.2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.2rem;
+      cursor: pointer;
+      transition: all 0.06s ease;
+      box-shadow: 0 5px 0 #6b4f73, 0 7px 8px rgba(0,0,0,0.5);
+      color: #2c1c2e;
+      text-shadow: 0 2px 3px rgba(255,255,240,0.5);
+      transform: scale(1);
+      line-height: 1;
+    }
+    .cell.selected {
+      box-shadow: 0 0 0 4px #ffe484, 0 0 0 8px #ffb347, 0 5px 0 #6b4f73;
+      transform: scale(1.02);
+      z-index: 5;
+      filter: brightness(1.1);
+    }
+    /* candy colours (backgrounds) */
+    .cell[data-type="0"] { background: #ff6f91; } /* strawberry */
+    .cell[data-type="1"] { background: #ffb347; } /* orange */
+    .cell[data-type="2"] { background: #fff275; } /* lemon */
+    .cell[data-type="3"] { background: #6ecb8b; } /* apple */
+    .cell[data-type="4"] { background: #71c9ff; } /* blueberry */
+    .cell[data-type="5"] { background: #d58cff; } /* grape */
+
+    /* little inner shine */
+    .cell::after {
+      content: "";
+      position: absolute;
+      width: 30%;
+      height: 30%;
+      background: radial-gradient(circle, rgba(255,255,255,0.8) 0%, rgba(255,255,240,0) 80%);
+      border-radius: 50%;
+      top: 15%;
+      left: 15%;
+      pointer-events: none;
+    }
+    .cell {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .button-reset {
+      background: #ffb347;
+      border: none;
+      font-size: 1.3rem;
+      font-weight: 800;
+      padding: 0.6rem 2.2rem;
+      border-radius: 3rem;
+      color: #2d1f35;
+      letter-spacing: 1px;
+      cursor: pointer;
+      box-shadow: 0 7px 0 #b1611e, 0 8px 12px black;
+      transition: all 0.08s;
+      border: 1px solid #ffeac2;
+      margin-top: 0.4rem;
+      text-transform: uppercase;
+    }
+    .button-reset:active {
+      transform: translateY(5px);
+      box-shadow: 0 2px 0 #b1611e, 0 5px 10px black;
+    }
+    .button-reset:hover {
+      filter: brightness(1.08);
+    }
+    .message {
+      color: #ffeac2;
+      font-weight: 500;
+      font-size: 1rem;
+      min-height: 1.8rem;
+      text-shadow: 0 2px 0 #1d0f1d;
+      letter-spacing: 0.5px;
+    }
+  </style>
+</head>
+<body>
+<div class="game-wrapper">
+  <div class="game-panel">
+    <div class="score-area">
+      <span class="score-label">🍭 SCORE</span>
+      <span class="score-value" id="scoreDisplay">0</span>
+    </div>
+    <div class="board-container">
+      <div class="grid" id="grid"></div>
+    </div>
+    <div class="message" id="message">Click a candy, then a neighbor to swap</div>
+    <button class="button-reset" id="resetButton">🍬 New Game</button>
+  </div>
+</div>
+<script>
+  (function() {
+    // ---------- CONFIG ----------
+    const ROWS = 8;
+    const COLS = 8;
+    const TYPES = 6;          // 0..5
+    const SCORE_PER_MATCH = 10; // per candy in a match (3 = 30)
+
+    // ---------- GAME STATE ----------
+    let board = [];            // 2D array of type integers [0..5]
+    let score = 0;
+    let selected = null;      // { row, col } or null
+    let processing = false;   // block clicks during async animation
+
+    // DOM elements
+    const gridEl = document.getElementById('grid');
+    const scoreDisplay = document.getElementById('scoreDisplay');
+    const messageEl = document.getElementById('message');
+
+    // ---------- UTILITY FUNCTIONS ----------
+    function getRandomType() {
+      return Math.floor(Math.random() * TYPES);
+    }
+
+    // deep copy of board for simulations
+    function copyBoard(b) {
+      return b.map(row => [...row]);
+    }
+
+    // generate a board with no initial matches
+    function generateBoard() {
+      const newBoard = Array(ROWS).fill().map(() => Array(COLS).fill(0));
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          let type;
+          let attempts = 0;
+          do {
+            type = getRandomType();
+            attempts++;
+            // avoid immediate match horizontally (left two)
+            if (c >= 2 && newBoard[r][c-1] === type && newBoard[r][c-2] === type) continue;
+            // avoid immediate match vertically (above two)
+            if (r >= 2 && newBoard[r-1][c] === type && newBoard[r-2][c] === type) continue;
+            break;
+          } while (attempts < 50);
+          newBoard[r][c] = type;
+        }
+      }
+      return newBoard;
+    }
+
+    // ---------- RENDER BOARD (creates/updates DOM) ----------
+    function renderBoard() {
+      // ensure grid has correct number of cells
+      if (gridEl.children.length !== ROWS * COLS) {
+        gridEl.innerHTML = '';
+        for (let r = 0; r < ROWS; r++) {
+          for (let c = 0; c < COLS; c++) {
+            const cell = document.createElement('div');
+            cell.className = 'cell';
+            cell.dataset.row = r;
+            cell.dataset.col = c;
+            cell.dataset.type = board[r][c];
+            cell.textContent = getEmojiForType(board[r][c]);
+            gridEl.appendChild(cell);
+          }
+        }
+      } else {
+        // update existing cells
+        for (let r = 0; r < ROWS; r++) {
+          for (let c = 0; c < COLS; c++) {
+            const idx = r * COLS + c;
+            const cell = gridEl.children[idx];
+            if (!cell) continue;
+            const newType = board[r][c];
+            if (cell.dataset.type !== String(newType)) {
+              cell.dataset.type = newType;
+              cell.textContent = getEmojiForType(newType);
+            }
+            // remove selected class from all; we will reapply later if needed
+            cell.classList.remove('selected');
+          }
+        }
+      }
+      // apply selected highlight
+      if (selected) {
+        const idx = selected.row * COLS + selected.col;
+        const cell = gridEl.children[idx];
+        if (cell) cell.classList.add('selected');
+      }
+      // update score display
+      scoreDisplay.textContent = score;
+    }
+
+    // get emoji for a type (for flavour)
+    function getEmojiForType(type) {
+      const emojis = ['🍓', '🍊', '🍋', '🍏', '🫐', '🍇'];
+      return emojis[type] || '🍬';
+    }
+
+    // ---------- MATCH DETECTION ----------
+    // returns a Set of "r,c" strings that are part of any match (horizontal or vertical 3+)
+    function getMatches(boardState) {
+      const matched = new Set();
+
+      // horizontal
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS - 2; c++) {
+          const val = boardState[r][c];
+          if (val === -1) continue; // shouldn't happen but safe
+          if (boardState[r][c+1] === val && boardState[r][c+2] === val) {
+            let end = c + 2;
+            while (end + 1 < COLS && boardState[r][end+1] === val) end++;
+            for (let k = c; k <= end; k++) {
+              matched.add(`${r},${k}`);
+            }
+            c = end; // skip ahead
+          }
+        }
+      }
+
+      // vertical
+      for (let c = 0; c < COLS; c++) {
+        for (let r = 0; r < ROWS - 2; r++) {
+          const val = boardState[r][c];
+          if (val === -1) continue;
+          if (boardState[r+1][c] === val && boardState[r+2][c] === val) {
+            let end = r + 2;
+            while (end + 1 < ROWS && boardState[end+1][c] === val) end++;
+            for (let k = r; k <= end; k++) {
+              matched.add(`${k},${c}`);
+            }
+            r = end;
+          }
+        }
+      }
+      return matched;
+    }
+
+    // check if there's any match in current board
+    function hasMatches(boardState) {
+      return getMatches(boardState).size > 0;
+    }
+
+    // ---------- GRAVITY & REFILL ----------
+    // drops candies down and fills empty (-1) with random types, returns new board
+    function applyGravityAndRefill(boardState) {
+      const newBoard = copyBoard(boardState);
+      for (let c = 0; c < COLS; c++) {
+        // collect non-empty from bottom to top
+        const columnValues = [];
+        for (let r = ROWS - 1; r >= 0; r--) {
+          if (newBoard[r][c] !== -1) {
+            columnValues.push(newBoard[r][c]);
+          }
+        }
+        // fill bottom with collected values, then random on top
+        for (let r = ROWS - 1; r >= 0; r--) {
+          if (columnValues.length > 0) {
+            newBoard[r][c] = columnValues.shift();
+          } else {
+            newBoard[r][c] = getRandomType();
+          }
+        }
+      }
+      return newBoard;
+    }
+
+    // remove matched cells (set to -1) and return board + number removed
+    function removeMatches(boardState, matchesSet) {
+      const newBoard = copyBoard(boardState);
+      let removedCount = 0;
+      for (const pos of matchesSet) {
+        const [r, c] = pos.split(',').map(Number);
+        if (newBoard[r][c] !== -1) {
+          newBoard[r][c] = -1;
+          removedCount++;
+        }
+      }
+      return { newBoard, removedCount };
+    }
+
+    // main loop: resolve all matches (cascade) until no matches left
+    // returns { board: finalBoard, totalScoreGained }
+    async function resolveMatches(boardState, addScore = true) {
+      let currentBoard = copyBoard(boardState);
+      let totalGained = 0;
+      let anyRemoved = true;
+
+      while (anyRemoved) {
+        const matches = getMatches(currentBoard);
+        if (matches.size === 0) {
+          anyRemoved = false;
+          break;
+        }
+
+        // show matches by removing them temporarily? We'll do it in sync but update UI
+        const { newBoard: afterRemove, removedCount } = removeMatches(currentBoard, matches);
+        if (addScore) {
+          const gained = removedCount * SCORE_PER_MATCH;
+          score += gained;
+          totalGained += gained;
+          scoreDisplay.textContent = score;
+        }
+
+        // apply gravity + refill on the board with holes
+        const afterGravity = applyGravityAndRefill(afterRemove);
+        currentBoard = afterGravity;
+
+        // update UI to reflect current board during cascade
+        board = copyBoard(currentBoard);
+        renderBoard();
+
+        // small delay for visual effect
+        await new Promise(resolve => setTimeout(resolve, 90));
+      }
+
+      // ensure board is updated
+      board = copyBoard(currentBoard);
+      renderBoard();
+      return { board: currentBoard, totalGained };
+    }
+
+    // ---------- SWAP & VALIDATION ----------
+    async function trySwap(r1, c1, r2, c2) {
+      if (processing) return;
+      processing = true;
+
+      // swap in board
+      const temp = board[r1][c1];
+      board[r1][c1] = board[r2][c2];
+      board[r2][c2] = temp;
+
+      // update UI immediately to show swap
+      renderBoard();
+      // brief pause so player sees swap
+      await new Promise(resolve => setTimeout(resolve, 80));
+
+      // check if swap creates at least one match
+      if (hasMatches(board)) {
+        // valid swap -> resolve cascades
+        messageEl.textContent = '✨ Nice match! ✨';
+        await resolveMatches(board, true);
+        // after resolving, check if there are possible moves; if not, shuffle
+        if (!hasPossibleMove()) {
+          messageEl.textContent = 'No moves left – reshuffling...';
+          await shuffleBoard();
+        } else {
+          messageEl.textContent = 'Click a candy, then a neighbor';
+        }
+      } else {
+        // invalid swap -> revert
+        const tempBack = board[r1][c1];
+        board[r1][c1] = board[r2][c2];
+        board[r2][c2] = tempBack;
+        renderBoard();
+        messageEl.textContent = '⛔ No match – try again';
+        await new Promise(resolve => setTimeout(resolve, 250));
+      }
+
+      // clear selection
+      selected = null;
+      renderBoard();
+      processing = false;
+    }
+
+    // ---------- CHECK POSSIBLE MOVES ----------
+    function hasPossibleMove() {
+      // brute-force check all adjacent swaps
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          // swap right
+          if (c + 1 < COLS) {
+            const testBoard = copyBoard(board);
+            [testBoard[r][c], testBoard[r][c+1]] = [testBoard[r][c+1], testBoard[r][c]];
+            if (getMatches(testBoard).size > 0) return true;
+          }
+          // swap down
+          if (r + 1 < ROWS) {
+            const testBoard = copyBoard(board);
+            [testBoard[r][c], testBoard[r+1][c]] = [testBoard[r+1][c], testBoard[r][c]];
+            if (getMatches(testBoard).size > 0) return true;
+          }
+        }
+      }
+      return false;
+    }
+
+    // ---------- SHUFFLE BOARD (when no moves) ----------
+    async function shuffleBoard() {
+      // keep trying random shuffles until a board with no immediate matches AND has possible moves
+      let attempts = 0;
+      const maxAttempts = 200;
+      let newBoard;
+      do {
+        newBoard = generateBoard(); // random board with no initial matches
+        attempts++;
+        // ensure there is at least one possible move
+        if (hasPossibleMoveOnBoard(newBoard) && !hasMatches(newBoard)) {
+          break;
+        }
+      } while (attempts < maxAttempts);
+
+      if (attempts >= maxAttempts) {
+        // fallback: just use a fresh board, may have no moves but rare
+        newBoard = generateBoard();
+      }
+
+      board = newBoard;
+      selected = null;
+      renderBoard();
+      await new Promise(resolve => setTimeout(resolve, 150));
+    }
+
+    // helper: check possible moves on a given board state
+    function hasPossibleMoveOnBoard(boardState) {
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          if (c + 1 < COLS) {
+            const testBoard = copyBoard(boardState);
+            [testBoard[r][c], testBoard[r][c+1]] = [testBoard[r][c+1], testBoard[r][c]];
+            if (getMatches(testBoard).size > 0) return true;
+          }
+          if (r + 1 < ROWS) {
+            const testBoard = copyBoard(boardState);
+            [testBoard[r][c], testBoard[r+1][c]] = [testBoard[r+1][c], testBoard[r][c]];
+            if (getMatches(testBoard).size > 0) return true;
+          }
+        }
+      }
+      return false;
+    }
+
+    // ---------- INIT / RESET ----------
+    async function initGame() {
+      processing = true;
+      score = 0;
+      selected = null;
+      scoreDisplay.textContent = '0';
+      messageEl.textContent = 'Click a candy, then a neighbor to swap';
+
+      // generate board with no initial matches, then ensure at least one move
+      let initialBoard = generateBoard();
+      let attempts = 0;
+      while (!hasPossibleMoveOnBoard(initialBoard) && attempts < 100) {
+        initialBoard = generateBoard();
+        attempts++;
+      }
+
+      board = initialBoard;
+      renderBoard();
+
+      // resolve any accidental matches (shouldn't be, but safe)
+      if (hasMatches(board)) {
+        await resolveMatches(board, true);
+      }
+
+      processing = false;
+      renderBoard();
+      messageEl.textContent = 'Click a candy, then a neighbor to swap';
+    }
+
+    // ---------- EVENT HANDLING (click) ----------
+    gridEl.addEventListener('click', (e) => {
+      if (processing) return; // ignore clicks while animating/resolving
+      const cell = e.target.closest('.cell');
+      if (!cell) return;
+      const row = parseInt(cell.dataset.row, 10);
+      const col = parseInt(cell.dataset.col, 10);
+      if (isNaN(row) || isNaN(col)) return;
+
+      // if nothing selected, select this cell
+      if (!selected) {
+        selected = { row, col };
+        renderBoard();
+        return;
+      }
+
+      // if clicked same cell -> deselect
+      if (selected.row === row && selected.col === col) {
+        selected = null;
+        renderBoard();
+        return;
+      }
+
+      // if clicked a neighbor (up/down/left/right) -> swap
+      const dr = Math.abs(selected.row - row);
+      const dc = Math.abs(selected.col - col);
+      if ((dr === 1 && dc === 0) || (dr === 0 && dc === 1)) {
+        const first = selected;
+        selected = null;  // clear selection before swap
+        trySwap(first.row, first.col, row, col);
+      } else {
+        // not a neighbor: just select the new cell
+        selected = { row, col };
+        renderBoard();
+      }
+    });
+
+    // reset button
+    document.getElementById('resetButton').addEventListener('click', () => {
+      if (processing) return;
+      initGame();
+    });
+
+    // ---------- START ----------
+    initGame();
+
+  })();
+</script>
+</body>
+</html>
